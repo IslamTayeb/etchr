@@ -1,0 +1,52 @@
+.carouselContainer {
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+    padding: 20px 0;
+  }
+
+  .carousel {
+    overflow: hidden;
+  }
+
+  .carouselTrack {
+    display: flex;
+    animation: scroll var(--animation-duration) linear infinite;
+  }
+
+  @keyframes scroll {
+    0% {
+      transform: translateX(0);
+    }
+    100% {
+      transform: translateX(calc(-1 * var(--scroll-width) / 2));
+    }
+  }
+
+  .feedbackCard {
+    flex: 0 0 300px;
+    margin-right: 20px;
+    height: 150px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .fadeLeft,
+  .fadeRight {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 100px;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .fadeLeft {
+    left: -1px;
+    background: linear-gradient(to right, hsl(var(--background)) 0%, transparent 100%);
+  }
+
+  .fadeRight {
+    right: -1px;
+    background: linear-gradient(to left, hsl(var(--background)) 0%, transparent 100%);
+  }
