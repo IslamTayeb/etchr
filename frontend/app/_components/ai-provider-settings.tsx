@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Info, KeyRound } from "lucide-react";
+import { Check, ChevronsUpDown, Info, KeyRound, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -47,6 +47,132 @@ interface AiProviderSettingsProps {
 const SAFE_DATA_COPY =
   "Your API key is kept only in this browser tab, sent to Etchr's backend for the current generation request, forwarded to your selected AI provider, and never saved in Etchr's database or logs. Selected repository content is sent only to the provider you choose.";
 
+interface ModelSearchPickerProps {
+  label: string;
+  options: string[];
+  placeholder: string;
+  value: string;
+  onChange: (model: string) => void;
+}
+
+function ModelSearchPicker({ label, options, placeholder, value, onChange }: ModelSearchPickerProps) {
+  const [open, setOpen] = React.useState(false);
+  const [query, setQuery] = React.useState(value);
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const inputId = React.useId();
+
+  React.useEffect(() => {
+    if (!open) {
+      setQuery(value);
+    }
+  }, [open, value]);
+
+  React.useEffect(() => {
+    if (!open) return;
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!containerRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [open]);
+
+  const trimmedQuery = query.trim();
+  const normalizedQuery = trimmedQuery.toLowerCase();
+  const filteredOptions = React.useMemo(() => {
+    if (!normalizedQuery) return options;
+    return options.filter((model) => model.toLowerCase().includes(normalizedQuery));
+  }, [normalizedQuery, options]);
+  const hasExactMatch = options.some((model) => model.toLowerCase() === normalizedQuery);
+  const canUseCustom = Boolean(trimmedQuery) && !hasExactMatch;
+
+  const selectModel = (model: string) => {
+    onChange(model);
+    setQuery(model);
+    setOpen(false);
+  };
+
+  return (
+    <div className="grid gap-2" ref={containerRef}>
+      <Label htmlFor={inputId}>{label}</Label>
+      <div className="relative">
+        <Button
+          type="button"
+          variant="outline"
+          className="h-11 w-full justify-between rounded-lg border-input bg-background px-3 text-left font-normal"
+          onClick={() => setOpen((current) => !current)}
+        >
+          <span className={cn("truncate", !value && "text-muted-foreground")}>
+            {value || placeholder}
+          </span>
+          <ChevronsUpDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+        </Button>
+
+        {open && (
+          <div className="absolute z-[70] mt-2 w-full overflow-hidden rounded-lg border border-border bg-popover text-popover-foreground shadow-lg">
+            <div className="flex items-center gap-2 border-b border-border px-3 py-2">
+              <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <input
+                id={inputId}
+                autoFocus
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && trimmedQuery) {
+                    event.preventDefault();
+                    selectModel(trimmedQuery);
+                  }
+                  if (event.key === "Escape") {
+                    setOpen(false);
+                  }
+                }}
+                placeholder="Search or enter a model ID..."
+                className="h-9 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+              />
+            </div>
+
+            <div className="max-h-64 overflow-y-auto p-1">
+              {filteredOptions.map((model) => (
+                <button
+                  key={model}
+                  type="button"
+                  className={cn(
+                    "flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground",
+                    value === model && "bg-accent text-accent-foreground"
+                  )}
+                  onClick={() => selectModel(model)}
+                >
+                  <span className="truncate">{model}</span>
+                  {value === model && <Check className="h-4 w-4 shrink-0" />}
+                </button>
+              ))}
+
+              {canUseCustom && (
+                <button
+                  type="button"
+                  className="flex w-full items-center rounded-md px-3 py-2 text-left text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                  onClick={() => selectModel(trimmedQuery)}
+                >
+                  Use custom model ID: <span className="ml-1 truncate font-medium text-foreground">{trimmedQuery}</span>
+                </button>
+              )}
+
+              {!filteredOptions.length && !canUseCustom && (
+                <div className="px-3 py-6 text-center text-sm text-muted-foreground">
+                  Type a model ID to use a custom value.
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function AiProviderSettings({ value, onChange }: AiProviderSettingsProps) {
   const [open, setOpen] = React.useState(false);
   const [draft, setDraft] = React.useState<AiProviderConfig>(value);
@@ -60,6 +186,9 @@ export function AiProviderSettings({ value, onChange }: AiProviderSettingsProps)
   const modelOptions = MODEL_OPTIONS[draft.provider] || [];
   const configured = isAiProviderConfigured(value);
   const draftConfigured = isAiProviderConfigured(draft);
+  const modelLabel = draft.provider === "azure" ? "Deployment name" : "Model";
+  const modelPlaceholder =
+    draft.provider === "azure" ? "my-gpt-deployment" : DEFAULT_MODELS[draft.provider] || "Enter model ID";
 
   const updateDraft = (updates: Partial<AiProviderConfig>) => {
     setDraft((current) => ({ ...current, ...updates }));
@@ -67,10 +196,6 @@ export function AiProviderSettings({ value, onChange }: AiProviderSettingsProps)
 
   const handleProviderChange = (provider: AiProvider) => {
     setDraft((current) => getConfigForProvider(provider, current));
-  };
-
-  const handleModelSelect = (model: string) => {
-    updateDraft({ model: model === "custom" ? "" : model });
   };
 
   const handleSave = () => {
@@ -83,14 +208,20 @@ export function AiProviderSettings({ value, onChange }: AiProviderSettingsProps)
       <DialogTrigger asChild>
         <Button
           type="button"
-          variant={configured ? "secondary" : "outline"}
-          className={cn("w-full justify-between gap-3 border-dashed", !configured && "text-muted-foreground")}
+          variant="secondary"
+          className="h-12 w-full justify-between gap-3 rounded-xl border border-border/70 bg-secondary/70 px-4 shadow-sm hover:bg-secondary"
         >
-          <span className="flex items-center gap-2 min-w-0">
-            <KeyRound className="h-4 w-4 flex-none" />
-            <span className="truncate">{getAiProviderStatus(value)}</span>
+          <span className="flex min-w-0 items-center gap-3">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-background/70 text-muted-foreground">
+              <KeyRound className="h-4 w-4" />
+            </span>
+            <span className={cn("truncate text-left font-medium", !configured && "text-muted-foreground")}>
+              {getAiProviderStatus(value)}
+            </span>
           </span>
-          <span className="text-xs text-muted-foreground">{configured ? "Edit" : "Set up"}</span>
+          <span className="shrink-0 rounded-full border border-border/60 bg-background/60 px-2.5 py-1 text-xs text-muted-foreground">
+            {configured ? "Edit" : "Set up"}
+          </span>
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[560px]">
@@ -130,44 +261,14 @@ export function AiProviderSettings({ value, onChange }: AiProviderSettingsProps)
             </Select>
           </div>
 
-          {modelOptions.length > 0 && (
-            <div className="grid gap-2">
-              <Label>Model</Label>
-              <Select
-                value={modelOptions.includes(draft.model) ? draft.model : "custom"}
-                onValueChange={handleModelSelect}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select model" />
-                </SelectTrigger>
-                <SelectContent>
-                  {modelOptions.map((model) => (
-                    <SelectItem key={model} value={model}>
-                      {model}
-                    </SelectItem>
-                  ))}
-                  <SelectItem value="custom">Custom model</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          {(!modelOptions.length || !modelOptions.includes(draft.model)) && (
-            <div className="grid gap-2">
-              <Label>{draft.provider === "azure" ? "Deployment name" : "Custom model ID"}</Label>
-              <Input
-                value={draft.model}
-                onChange={(event) => updateDraft({ model: event.target.value })}
-                placeholder={
-                  draft.provider === "bedrock"
-                    ? "us.anthropic.claude-haiku-4-5-20251001-v1:0"
-                    : draft.provider === "azure"
-                      ? "my-gpt-deployment"
-                      : DEFAULT_MODELS[draft.provider]
-                }
-              />
-            </div>
-          )}
+          <ModelSearchPicker
+            key={draft.provider}
+            label={modelLabel}
+            options={modelOptions}
+            placeholder={modelPlaceholder}
+            value={draft.model}
+            onChange={(model) => updateDraft({ model })}
+          />
 
           {draft.provider === "azure" && (
             <>

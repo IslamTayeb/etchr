@@ -29,9 +29,9 @@ export class AiProviderConfigError extends Error {
 }
 
 const DEFAULT_MODELS: Record<Exclude<AiProvider, 'azure' | 'bedrock'>, string> = {
-  openai: 'gpt-4o-mini',
-  anthropic: 'claude-3-5-haiku-latest',
-  gemini: 'gemini-1.5-flash',
+  openai: 'gpt-5.4-mini',
+  anthropic: 'claude-haiku-4-5',
+  gemini: 'gemini-2.5-flash',
 };
 
 const isNonEmpty = (value: unknown): value is string =>
