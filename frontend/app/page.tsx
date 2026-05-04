@@ -138,7 +138,7 @@ export default function LandingPage() {
 //   {
 //     icon: FileChartPie,
 //     title: "File Analysis",
-//     description: "Automatic analysis of your repository's content to generate comprehensive documentation using Google's Gemini Flash."
+//     description: "Automatic analysis of your repository's content to generate comprehensive documentation using your selected AI provider."
 //   },
 //   {
 //     icon: FileCode,
@@ -169,7 +169,7 @@ type Highlight = {
 
 const highlights: Highlight[] = [
   { id: "1", x: 12, y: 25, title: "Section Management", description: "Intuitive drag-and-drop interface for organizing README sections with real-time markdown preview and full customization.", orientation: "bottom-right", icon: Boxes },
-  { id: "3", x: 19.5, y: 63, title: "LLM Generation", description: "AI-powered content generation using Google's Gemini to create detailed, context-aware documentation from your codebase.", orientation: "bottom-right", icon: Sparkles },
+  { id: "3", x: 19.5, y: 63, title: "LLM Generation", description: "AI-powered content generation using your selected provider to create detailed, context-aware documentation from your codebase.", orientation: "bottom-right", icon: Sparkles },
   { id: "2", x: 11, y: 90, title: "Quick Add", description: "Rapidly insert pre-built template sections like Features, Installation, and API Documentation with AI-assisted content population.", orientation: "bottom-right", icon: PlusCircle },
   { id: "4", x: 40, y: 47, title: "Drag-and-Drop Files", description: "Seamlessly upload and embed images and files directly into your documentation with automatic GitHub repository storage.", orientation: "bottom-right", icon: Upload },
   { id: "5", x: 82, y: 79.5, title: "Excalidraw Integration", description: "Create and embed professional diagrams and sketches directly within your documentation using the built-in Excalidraw editor.", orientation: "bottom-right", icon: Pen },

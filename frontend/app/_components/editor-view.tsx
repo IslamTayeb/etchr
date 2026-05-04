@@ -15,6 +15,7 @@ import { SectionData } from "./sections/sections-column"
 import { compileSections } from "@/lib/section-manager"
 import { toast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils";
+import { isAiProviderConfigured, type AiProviderConfig } from "@/lib/ai-provider";
 
 interface FileTreeItem {
   path: string;
@@ -30,6 +31,7 @@ interface EditorViewProps {
   markdown: string;
   setMarkdown: (markdown: string) => void;
   userId: string | null;
+  aiProviderConfig: AiProviderConfig;
   onLimitReached: () => void;  // Add this
 }
 
@@ -40,7 +42,7 @@ interface FileSelectionParams {
 }
 
 
-export function EditorView({ repoUrl, markdown, setMarkdown, userId, onLimitReached }: EditorViewProps) {
+export function EditorView({ repoUrl, markdown, setMarkdown, userId, aiProviderConfig, onLimitReached }: EditorViewProps) {
   const [loading, setLoading] = useState(false);
   const [showFileTree, setShowFileTree] = useState(true);
   const [files, setFiles] = useState<FileTreeItem[]>([]);
@@ -270,6 +272,15 @@ export function EditorView({ repoUrl, markdown, setMarkdown, userId, onLimitReac
   };
 
   const handleFileSelection = async ({ selectedFiles: newSelectedFiles, projectContext }: FileSelectionParams) => {
+    if (!isAiProviderConfigured(aiProviderConfig)) {
+      toast({
+        title: "AI Provider Required",
+        description: "Add your API key before generating a README.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     const selectedFileItems = files.filter(file => newSelectedFiles.includes(file.path));
     setSelectedFiles(selectedFileItems);
 
@@ -285,7 +296,8 @@ export function EditorView({ repoUrl, markdown, setMarkdown, userId, onLimitReac
           repoUrl: encodedRepoUrl,
           selectedFiles: newSelectedFiles,
           projectContext,
-          userId
+          userId,
+          aiProviderConfig
         },
         {
           headers: {
@@ -315,7 +327,12 @@ export function EditorView({ repoUrl, markdown, setMarkdown, userId, onLimitReac
                     setLoading(false);
                   }, 200);
                 } else if (update.status === 'error') {
-                  throw new Error(update.message);
+                  toast({
+                    title: "Generation Failed",
+                    description: update.message,
+                    variant: "destructive"
+                  });
+                  setLoading(false);
                 } else {
                   setLoadingMessages([update.message]);
                   if (update.tokenCount) {
@@ -344,6 +361,15 @@ export function EditorView({ repoUrl, markdown, setMarkdown, userId, onLimitReac
           }
           return;
         }
+
+        const errorMessage = error.response?.data?.error || error.message;
+        toast({
+          title: "Generation Failed",
+          description: errorMessage,
+          variant: "destructive"
+        });
+        setLoading(false);
+        return;
       }
       console.error('Error generating README:', error);
       setLoading(false);
@@ -430,6 +456,7 @@ export function EditorView({ repoUrl, markdown, setMarkdown, userId, onLimitReac
                 currentMarkdown={fullMarkdown}
                 selectedFiles={selectedFiles}
                 userId={userId}
+                aiProviderConfig={aiProviderConfig}
                 showExcalidraw={showExcalidraw}
                 setShowExcalidraw={setShowExcalidraw}
               />

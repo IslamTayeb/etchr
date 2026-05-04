@@ -18,6 +18,7 @@ import { supabase } from "@/lib/supabase"
 import { toast } from "@/hooks/use-toast"
 import { DirectorySelector } from "../editing/folder-selection"
 import { useDirectory } from "../editing/directory-context"
+import { isAiProviderConfigured, type AiProviderConfig } from "@/lib/ai-provider"
 
 export interface SectionData {
   id: string;
@@ -41,6 +42,7 @@ interface SectionsColumnProps {
   currentMarkdown: string;
   selectedFiles: FileData[];
   userId: string | null;
+  aiProviderConfig: AiProviderConfig;
   showExcalidraw: boolean;
   setShowExcalidraw: (show: boolean) => void;
 }
@@ -73,6 +75,7 @@ export function SectionsColumn({
   repoUrl,
   currentMarkdown,
   selectedFiles,
+  aiProviderConfig,
   showExcalidraw,
   setShowExcalidraw,
 }: SectionsColumnProps) {
@@ -85,6 +88,7 @@ export function SectionsColumn({
   const [showFolderDialog, setShowFolderDialog] = useState(false);
   const [files, setFiles] = useState<FileTreeItem[]>([]);
   const { setSelectedDirectory } = useDirectory();
+  const isAiReady = isAiProviderConfigured(aiProviderConfig);
 
 
   const fetchRepositoryTree = useCallback(async () => {
@@ -324,6 +328,15 @@ export function SectionsColumn({
         return;
       }
 
+      if (!isAiProviderConfigured(aiProviderConfig)) {
+        toast({
+          title: "AI Provider Required",
+          description: "Add your API key before generating a section.",
+          variant: "destructive"
+        });
+        return;
+      }
+
       const { data: readmeGen } = await supabase
         .from('readme_generations')
         .select()
@@ -358,7 +371,8 @@ export function SectionsColumn({
             currentMarkdown,
             codebaseContent: useAI ? codebaseContent : '',
             useAI,
-            readmeId
+            readmeId,
+            aiProviderConfig
           },
           {
             headers: {
@@ -413,7 +427,14 @@ export function SectionsColumn({
         });
         return;
       }
-      console.error('Failed to generate section:', error);
+      const errorMessage = axios.isAxiosError(error)
+        ? error.response?.data?.error || error.message
+        : 'Failed to generate section.';
+      toast({
+        title: "Generation Failed",
+        description: errorMessage,
+        variant: "destructive"
+      });
     } finally {
       setIsGenerating(false);
     }
@@ -428,6 +449,15 @@ export function SectionsColumn({
       const token = localStorage.getItem("githubToken") || "";
       const readmeId = localStorage.getItem('currentReadmeId');
       const userId = localStorage.getItem("userId");
+
+      if (!isAiProviderConfigured(aiProviderConfig)) {
+        toast({
+          title: "AI Provider Required",
+          description: "Add your API key before generating a section.",
+          variant: "destructive"
+        });
+        return;
+      }
 
       const { data: readmeGen } = await supabase
         .from('readme_generations')
@@ -457,7 +487,8 @@ export function SectionsColumn({
           repoUrl,
           currentMarkdown,
           codebaseContent,
-          readmeId
+          readmeId,
+          aiProviderConfig
         },
         {
           headers: {
@@ -487,7 +518,14 @@ export function SectionsColumn({
         onSectionSelect(newSection);
       }
     } catch (error) {
-      console.error('Failed to generate template section:', error);
+      const errorMessage = axios.isAxiosError(error)
+        ? error.response?.data?.error || error.message
+        : 'Failed to generate template section.';
+      toast({
+        title: "Generation Failed",
+        description: errorMessage,
+        variant: "destructive"
+      });
     } finally {
       setIsGenerating(false);
     }
@@ -603,7 +641,7 @@ export function SectionsColumn({
             <Button
               className="w-full"
               onClick={handleGenerateNewSection}
-              disabled={isGenerating || !newSectionTitle.trim()}
+              disabled={isGenerating || !newSectionTitle.trim() || (useAI && !isAiReady)}
             >
               <PlusCircle className="h-4 w-4 mr-2" />
               {isGenerating ? (
@@ -629,7 +667,7 @@ export function SectionsColumn({
                     variant="secondary"
                     className="w-full justify-start h-auto py-2"
                     onClick={() => handleAddTemplateSection(template)}
-                    disabled={isGenerating}
+                    disabled={isGenerating || !isAiReady}
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <BookOpen className="h-4 w-4 flex-none" />

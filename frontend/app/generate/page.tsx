@@ -23,6 +23,12 @@ import { ReadmeNotification } from "../_components/editing/readme-notification";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { AiProviderSettings } from "../_components/ai-provider-settings";
+import {
+  DEFAULT_AI_PROVIDER_CONFIG,
+  isAiProviderConfigured,
+  type AiProviderConfig,
+} from "@/lib/ai-provider";
 
 interface Project {
   id: string;
@@ -50,6 +56,7 @@ export default function Dashboard() {
   const [showReadmeNotification, setShowReadmeNotification] = React.useState(false)
   const [userId, setUserId] = React.useState<string | null>(null);
   const [includePrivate, setIncludePrivate] = React.useState(true);
+  const [aiProviderConfig, setAiProviderConfig] = React.useState<AiProviderConfig>(DEFAULT_AI_PROVIDER_CONFIG);
 
   const supabase = createClientComponentClient();
 
@@ -237,6 +244,15 @@ export default function Dashboard() {
   };
 
   const handleNavigateToEditor = (repoUrl: string) => {
+    if (!isAiProviderConfigured(aiProviderConfig)) {
+      toast({
+        title: "AI Provider Required",
+        description: "Add your API key before generating a README.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setRepoUrl(repoUrl);
     setIsEditorMode(true);
   };
@@ -359,6 +375,12 @@ export default function Dashboard() {
                     </div>
                   ) : (
                     <div className="w-[700px] justify-self-center">
+                      <div className="mb-4">
+                        <AiProviderSettings
+                          value={aiProviderConfig}
+                          onChange={setAiProviderConfig}
+                        />
+                      </div>
                       <RepositoryList
                         repositories={repositories.map(repo => ({
                           id: Number(repo.id),
@@ -419,6 +441,7 @@ export default function Dashboard() {
                 markdown={markdown}
                 setMarkdown={setMarkdown}
                 userId={userId}
+                aiProviderConfig={aiProviderConfig}
                 onLimitReached={() => {
                   setIsEditorMode(false);
                   setMarkdown("");
@@ -448,6 +471,7 @@ export default function Dashboard() {
                 localStorage.removeItem("userId");
                 setIsAuthenticated(false);
                 setRepositories([]);
+                setAiProviderConfig(DEFAULT_AI_PROVIDER_CONFIG);
               }}
             >
               <LogOut className="h-4 w-4" />
