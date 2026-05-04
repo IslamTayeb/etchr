@@ -246,7 +246,7 @@ export function EditorView({ repoUrl, markdown, setMarkdown, userId, aiProviderC
       const token = localStorage.getItem("githubToken") || "";
       const encodedRepoUrl = encodeURIComponent(repoUrl);
       const response = await axios.get(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/github/fetch-tree?repoUrl=${encodedRepoUrl}`,
+        `/api/github/fetch-tree?repoUrl=${encodedRepoUrl}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -291,7 +291,7 @@ export function EditorView({ repoUrl, markdown, setMarkdown, userId, aiProviderC
       const encodedRepoUrl = encodeURIComponent(repoUrl);
 
       await axios.post(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/github/generate-readme`,
+        `/api/github/generate-readme`,
         {
           repoUrl: encodedRepoUrl,
           selectedFiles: newSelectedFiles,

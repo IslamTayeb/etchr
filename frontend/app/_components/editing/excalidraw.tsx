@@ -54,7 +54,7 @@ export default function ExcalidrawWrapper({ onExport, repoUrl }: Props) {
         const filename = `image-${Date.now()}.png`;
         const githubToken = localStorage.getItem("githubToken") || "";
         const response = await axios.post(
-          `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/github/upload-image`,
+          `/api/github/upload-image`,
           {
             repoUrl,
             imageData: reader.result,

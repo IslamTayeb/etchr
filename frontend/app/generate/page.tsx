@@ -63,7 +63,7 @@ export default function Dashboard() {
   const handleGithubAuth = () => {
     if (typeof window !== "undefined") {
       const scope = includePrivate ? 'repo' : 'public_repo';
-      window.location.href = `${process.env.NEXT_PUBLIC_BACKEND_URL}/auth/github/login?scope=${scope}`;
+      window.location.href = `/api/auth/github/login?scope=${scope}`;
     }
   };
 
@@ -71,7 +71,7 @@ export default function Dashboard() {
     const token = localStorage.getItem("githubToken") || "";
     setReposLoading(true); // Set reposLoading to true when fetching starts
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/auth/github/repos`, {
+      const response = await fetch(`/api/auth/github/repos`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -119,7 +119,7 @@ export default function Dashboard() {
       const savedUserId = localStorage.getItem("userId");
       if (!token || !savedUserId) throw new Error("Missing credentials");
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/auth/github/verify`, {
+      const response = await fetch(`/api/auth/github/verify`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -166,7 +166,7 @@ export default function Dashboard() {
 
     try {
       const token = localStorage.getItem("githubToken") || "";
-      const checkResponse = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/github/check-readme`, {
+      const checkResponse = await fetch(`/api/github/check-readme`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -199,7 +199,7 @@ export default function Dashboard() {
       await supabase
         .from('readme_generations')
         .insert([{ user_id: userId }]);
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/github/submit`, {
+      const response = await fetch(`/api/github/submit`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -77,7 +77,7 @@ export function DirectorySelector({
             if (!token) throw new Error("No auth token found");
 
             await axios.post(
-                `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/github/create-directory`,
+                `/api/github/create-directory`,
                 { repoUrl, path: newDirPath },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
@@ -99,7 +99,7 @@ export function DirectorySelector({
         const token = localStorage.getItem("githubToken");
         try {
             const response = await axios.get(
-                `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/github/fetch-tree?repoUrl=${encodeURIComponent(repoUrl)}`,
+                `/api/github/fetch-tree?repoUrl=${encodeURIComponent(repoUrl)}`,
                 { headers: { Authorization: `Bearer ${token}` } }
             );
             return response.data.files;

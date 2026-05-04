@@ -11,7 +11,7 @@ Etchr is a web application that simplifies the creation of comprehensive and pro
 * **Real-time Markdown Preview:** Provides a live preview of your README as you make changes.
 * **Intuitive Interface:** User-friendly interface for easy navigation and efficient README creation.
 * **Private Repository Support:** Supports both public and private repositories.
-* **Weekly Usage Limits:**  To ensure fair access to the AI, usage is capped.
+* **Bring Your Own API Key:** Use your own OpenAI, Anthropic, Gemini, Azure OpenAI, or AWS Bedrock credentials for AI generation.
 
 ## Usage
 1. **Authenticate with GitHub:**  Connect your GitHub account to Etchr to access your repositories.
@@ -26,17 +26,28 @@ Etchr is a web application; no installation is required. Simply navigate to the 
 
 ## Technologies Used (Tech Stack)
 * **Frontend:** Next.js, React, Tailwind CSS, Monaco Editor, React Markdown, Excalidraw, Framer Motion, @radix-ui components
-* **Backend:** Node.js, TypeScript, Express.js, Axios, Vercel AI SDK, Supabase
+* **Backend:** Vercel Functions, Next.js API routes, TypeScript, Axios, Vercel AI SDK, Supabase
 * **Database:** Supabase (PostgreSQL)
 
-## Configuration
-No server-side configuration is needed.  The backend is deployed and managed; all configuration is handled through environment variables.
+## Deployment
+Deploy the `frontend` directory as the Vercel project root. The app now serves both the frontend and backend API from the same Vercel deployment.
+
+Required Vercel environment variables:
+* `GITHUB_CLIENT_ID`
+* `GITHUB_CLIENT_SECRET`
+* `FRONTEND_URL` (for production, `https://www.etchr.dev`)
+* `NEXT_PUBLIC_SUPABASE_URL`
+* `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+* `SUPABASE_SERVICE_ROLE_KEY`
+
+Set the GitHub OAuth callback URL to:
+`https://www.etchr.dev/api/auth/github/callback`
 
 ## API Documentation
 The backend exposes several API endpoints for authentication, README generation, file management, and more.  Detailed documentation is available within the codebase comments and can be provided upon request.
 
 ## Dependencies
-The project dependencies are listed in the `frontend/package.json` and `backend/package.json` files.
+The Vercel app dependencies are listed in `frontend/package.json`.
 
 ## Contributing
 Contributions are welcome! Please open an issue or submit a pull request.

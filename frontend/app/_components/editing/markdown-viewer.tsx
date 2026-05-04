@@ -25,7 +25,7 @@ function rewriteGitHubUrlToLocalPreview(originalUrl: string, repoUrl: string) {
   const path = lastSlashIndex >= 0 ? pathAndFile.slice(0, lastSlashIndex) : "";
   const filename = pathAndFile.split("/").pop() || "";
 
-  return `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/github/preview-image?repoUrl=${encodeURIComponent(repoUrl)}&path=${encodeURIComponent(path)}&filename=${encodeURIComponent(filename)}&token=${token}`;
+  return `/api/github/preview-image?repoUrl=${encodeURIComponent(repoUrl)}&path=${encodeURIComponent(path)}&filename=${encodeURIComponent(filename)}&token=${token}`;
 }
 
 export function MarkdownViewer({ markdown, repoUrl }: MarkdownViewerProps) {

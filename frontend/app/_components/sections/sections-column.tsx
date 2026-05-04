@@ -14,7 +14,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { supabase } from "@/lib/supabase"
 import { toast } from "@/hooks/use-toast"
 import { DirectorySelector } from "../editing/folder-selection"
 import { useDirectory } from "../editing/directory-context"
@@ -96,7 +95,7 @@ export function SectionsColumn({
       const token = localStorage.getItem("githubToken");
       const encodedRepoUrl = encodeURIComponent(repoUrl);
       const response = await axios.get(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/github/fetch-tree?repoUrl=${encodedRepoUrl}`,
+        `/api/github/fetch-tree?repoUrl=${encodedRepoUrl}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setFiles(response.data.files);
@@ -155,64 +154,6 @@ export function SectionsColumn({
   //     return '';
   //   }
   // };
-
-  const fetchFileContent = async (owner: string, repo: string, fileSha: string, githubToken: string): Promise<string> => {
-    const url = `https://api.github.com/repos/${owner}/${repo}/git/blobs/${fileSha}`;
-
-    const response = await axios.get(url, {
-      headers: {
-        Authorization: `Bearer ${githubToken}`,
-        Accept: 'application/vnd.github.v3.raw'
-      },
-      responseType: 'arraybuffer'
-    });
-
-    const content = Buffer.from(response.data).toString('utf-8');
-
-    if (content.includes('"nbformat"') || content.includes('"cells"')) {
-      try {
-        const notebook = JSON.parse(content);
-        if (!notebook.cells) return content;
-
-        let markdown = '';
-        for (const cell of notebook.cells) {
-          if (cell.cell_type === 'markdown') {
-            markdown += Array.isArray(cell.source) ? cell.source.join('') : cell.source;
-            markdown += '\n\n';
-          } else if (cell.cell_type === 'code') {
-            markdown += '```python\n';
-            markdown += Array.isArray(cell.source) ? cell.source.join('') : cell.source;
-            markdown += '\n```\n\n';
-
-            if (cell.outputs?.length) {
-              markdown += 'Output:\n```\n';
-              for (const output of cell.outputs) {
-                if (output.output_type === 'stream' && output.text) {
-                  const text = Array.isArray(output.text) ? output.text.join('') : output.text;
-                  const lines = text.split('\n');
-                  markdown += lines.slice(0, 2).join('\n');
-                  if (lines.length > 2) markdown += '\n... [output truncated]\n';
-                } else if (output.output_type === 'execute_result' && output.data && output.data['text/plain']) {
-                  const text = Array.isArray(output.data['text/plain']) ?
-                    output.data['text/plain'].join('') : output.data['text/plain'];
-                  const lines = text.split('\n');
-                  markdown += lines.slice(0, 2).join('\n');
-                  if (lines.length > 2) markdown += '\n... [output truncated]\n';
-                }
-              }
-              markdown += '\n```\n\n';
-            }
-          }
-        }
-        return markdown;
-      } catch (err) {
-        console.error('Failed to parse notebook:', err);
-        return content;
-      }
-    }
-
-    return content;
-  };
 
   const mergeSections = (sections: SectionData[]): string => {
     return sections
@@ -337,39 +278,16 @@ export function SectionsColumn({
         return;
       }
 
-      const { data: readmeGen } = await supabase
-        .from('readme_generations')
-        .select()
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-
-      let codebaseContent = '';
-
-
       if (useAI) {
-        console.log("Fetching codebase content for AI...");
-        const [owner, repo] = repoUrl.replace("https://github.com/", "").split("/");
-
-        for (const file of selectedFiles) {
-          try {
-            const fileContent = await fetchFileContent(owner, repo, file.sha, token);
-            codebaseContent += `=== File: ${file.path} ===\n${fileContent}\n\n`;
-          } catch (err) {
-            console.error(`Failed to fetch content for ${file.path}:`, err);
-          }
-        }
-
         const response = await axios.post(
-          `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/sections/generate-section`,
+          `/api/sections/generate-section`,
           {
             title: newSectionTitle,
             level: parseInt(level),
             description: newSectionDescription,
             repoUrl,
             currentMarkdown,
-            codebaseContent: useAI ? codebaseContent : '',
+            selectedFiles,
             useAI,
             readmeId,
             aiProviderConfig
@@ -393,13 +311,6 @@ export function SectionsColumn({
           }
           throw new Error('Failed to generate section.');
         }
-
-        await supabase
-          .from('section_generations')
-          .insert([{
-            readme_id: readmeGen?.id,
-            user_id: userId
-          }]);
 
         if (response?.data?.section) {
           const newContent = response.data.section;
@@ -459,34 +370,13 @@ export function SectionsColumn({
         return;
       }
 
-      const { data: readmeGen } = await supabase
-        .from('readme_generations')
-        .select()
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-
-      const [owner, repo] = repoUrl.replace("https://github.com/", "").split("/");
-      let codebaseContent = '';
-
-      console.log("Fetching codebase content for template section...");
-      for (const file of selectedFiles) {
-        try {
-          const fileContent = await fetchFileContent(owner, repo, file.sha, token);
-          codebaseContent += `=== File: ${file.path} ===\n${fileContent}\n\n`;
-        } catch (err) {
-          console.error(`Failed to fetch content for ${file.path}:`, err);
-        }
-      }
-
       const response = await axios.post(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/sections/generate-template-section`,
+        `/api/sections/generate-template-section`,
         {
           template: template.name,
           repoUrl,
           currentMarkdown,
-          codebaseContent,
+          selectedFiles,
           readmeId,
           aiProviderConfig
         },
@@ -498,13 +388,6 @@ export function SectionsColumn({
           withCredentials: true
         }
       );
-
-      await supabase
-        .from('section_generations')
-        .insert([{
-          readme_id: readmeGen?.id,
-          user_id: userId
-        }]);
 
       if (response?.data?.section) {
         const newSection: SectionData = {

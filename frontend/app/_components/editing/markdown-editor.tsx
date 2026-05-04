@@ -106,7 +106,7 @@ export function MarkdownEditor({
       const token = getGithubToken();
       const encodedRepoUrl = encodeURIComponent(repoUrl);
       const response = await axios.get(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/github/fetch-tree?repoUrl=${encodedRepoUrl}`,
+        `/api/github/fetch-tree?repoUrl=${encodedRepoUrl}`,
         {
           headers: { Authorization: `Bearer ${token}` },
           withCredentials: true,
