@@ -9,9 +9,14 @@
     "gcp-build": "npm run build"
   },
   "dependencies": {
-    "@google/generative-ai": "^0.21.0",
+    "@ai-sdk/amazon-bedrock": "^4.0.100",
+    "@ai-sdk/anthropic": "^3.0.74",
+    "@ai-sdk/azure": "^3.0.59",
+    "@ai-sdk/google": "^3.0.67",
+    "@ai-sdk/openai": "^3.0.58",
     "@supabase/auth-helpers-nextjs": "^0.10.0",
     "@supabase/supabase-js": "^2.47.12",
+    "ai": "^6.0.174",
     "axios": "^1.7.9",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",

@@ -1,15 +1,12 @@
 import express, { Request, Response } from 'express';
 import axios from 'axios';
 import { config } from 'dotenv';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { supabase } from '../middleware/supabase';
+import { AiProviderConfigError, generateAiText, getSafeAiErrorMessage, validateAiProviderConfig } from '../lib/ai-provider';
 
 config();
 
 const router = express.Router();
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
-const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
 
 interface FileNode {
   path: string;
@@ -168,17 +165,19 @@ const shouldIncludeFile = (filePath: string, size: number): boolean => {
   return true;
 };
 
-const retryGemini = async (prompt: string, retries: number = 5, interval: number = 30000): Promise<string | null> => {
+const retryGenerateAiText = async (aiProviderConfig: unknown, prompt: string, retries: number = 3, interval: number = 5000): Promise<string | null> => {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
       console.log(`Attempt ${attempt} to generate README...`);
-      const result = await model.generateContent(prompt);
-      const readmeContent = await result.response.text();
+      const readmeContent = await generateAiText(aiProviderConfig, prompt);
       if (readmeContent) {
         return readmeContent;
       }
     } catch (error) {
-      console.error(`Attempt ${attempt} failed:`, error);
+      if (error instanceof AiProviderConfigError) {
+        throw error;
+      }
+      console.error(`Attempt ${attempt} failed:`, getSafeAiErrorMessage(error));
     }
     if (attempt < retries) {
       await new Promise((resolve) => setTimeout(resolve, interval));
@@ -367,35 +366,8 @@ const readmeRouter = async (req: Request, res: Response) => {
   const userId = req.headers['user-id'] as string;
 
   try {
-    // Create readme generation record first
-    const now = new Date();
-    const startOfWeek = new Date(now);
-    startOfWeek.setDate(now.getDate() - now.getDay());
-    startOfWeek.setHours(0, 0, 0, 0);
-    const endOfWeek = new Date(startOfWeek);
-    endOfWeek.setDate(startOfWeek.getDate() + 6);
-    endOfWeek.setHours(23, 59, 59, 999);
-
-    const { data: user } = await supabase
-      .from('users')
-      .select('is_admin')
-      .eq('id', userId)
-      .single();
-
-    if (!user?.is_admin) {
-      const { count: readmeCount } = await supabase
-        .from('readme_generations')
-        .select('id', { count: 'exact' })
-        .eq('user_id', userId)
-        .gte('created_at', startOfWeek.toISOString())
-        .lte('created_at', endOfWeek.toISOString())
-
-      if (readmeCount && readmeCount >= 5) {
-        return res.status(429).json({
-          error: 'Weekly README generation limit reached (5 per week). Please try again next week.'
-        });
-      }
-    }
+    const { repoUrl, selectedFiles, projectContext, truncateNotebookOutputs = true, aiProviderConfig } = req.body;
+    validateAiProviderConfig(aiProviderConfig);
 
     const { data: readmeGen, error: readmeError } = await supabase
       .from('readme_generations')
@@ -406,8 +378,6 @@ const readmeRouter = async (req: Request, res: Response) => {
       .single();
 
     if (readmeError) throw readmeError;
-
-    const { repoUrl, selectedFiles, projectContext, truncateNotebookOutputs = true } = req.body;
 
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Transfer-Encoding', 'chunked');
@@ -466,7 +436,7 @@ const readmeRouter = async (req: Request, res: Response) => {
 
     res.write(JSON.stringify({ status: 'generating', message: 'Generating README...' }) + '\n');
 
-    const readmeContent = await retryGemini(fullPrompt);
+    const readmeContent = await retryGenerateAiText(aiProviderConfig, fullPrompt);
 
     if (!readmeContent) {
       await supabase
@@ -499,10 +469,15 @@ const readmeRouter = async (req: Request, res: Response) => {
     res.end();
 
   } catch (error) {
-    console.error('Error generating README:', error);
+    console.error('Error generating README:', getSafeAiErrorMessage(error));
+    if (!res.headersSent && error instanceof AiProviderConfigError) {
+      res.status(error.statusCode).json({ error: getSafeAiErrorMessage(error) });
+      return;
+    }
+
     res.write(JSON.stringify({
       status: 'error',
-      message: 'Failed to generate README'
+      message: getSafeAiErrorMessage(error)
     }) + '\n');
     res.end();
   }

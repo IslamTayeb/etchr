@@ -1,15 +1,14 @@
 import express from 'express';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { fetchRepoTree, fetchFileContent, convertIpynbToMarkdown } from './github-code-fetch'; // Import necessary functions
 import { supabase } from '../middleware/supabase';
+import { AiProviderConfigError, generateAiText, getSafeAiErrorMessage, validateAiProviderConfig } from '../lib/ai-provider';
 
 const router = express.Router();
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 router.post('/generate-section', async (req, res) => {
     const userId = req.headers['user-id'] as string;
     const readmeId = req.body.readmeId;
-    const { title, level, description, useAI } = req.body;
+    const { title, level, description, useAI, aiProviderConfig } = req.body;
 
     if (!useAI) {
         return res.json({
@@ -19,26 +18,7 @@ router.post('/generate-section', async (req, res) => {
 
     try {
         const { title, level, description, repoUrl, currentMarkdown, codebaseContent, useAI } = req.body;
-
-        const { data: user } = await supabase
-            .from('users')
-            .select('is_admin')
-            .eq('id', userId)
-            .single();
-
-        if (!user?.is_admin) {
-            const { count: sectionCount } = await supabase
-                .from('section_generations')
-                .select('id', { count: 'exact' })
-                .eq('readme_id', readmeId)
-                .eq('user_id', userId);
-
-            if (sectionCount && sectionCount >= 3) {
-                return res.status(429).json({
-                    error: 'Section generation limit reached for this README (3 per README)'
-                });
-            }
-        }
+        validateAiProviderConfig(aiProviderConfig);
 
         const { error: sectionError } = await supabase
             .from('section_generations')
@@ -49,10 +29,6 @@ router.post('/generate-section', async (req, res) => {
             }]);
 
         if (sectionError) throw sectionError;
-
-
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
 
         const prompt = `Generate a section titled "${title}" for a GitHub README.md file.
       ${description ? `The section should address: ${description}` : ''}
@@ -72,15 +48,13 @@ router.post('/generate-section', async (req, res) => {
 
       Generate only the section content in markdown format.`;
 
-        console.log('Prompt sent to Gemini:', prompt);
-
-        const result = await model.generateContent(prompt);
-        const sectionContent = result.response.text();
+        const sectionContent = await generateAiText(aiProviderConfig, prompt);
 
         res.json({ section: sectionContent });
     } catch (error) {
-        console.error('Error generating section:', error);
-        res.status(500).json({ error: 'Failed to generate section' });
+        console.error('Error generating section:', getSafeAiErrorMessage(error));
+        const status = error instanceof AiProviderConfigError ? error.statusCode : 500;
+        res.status(status).json({ error: getSafeAiErrorMessage(error) });
     }
 });
 
@@ -89,12 +63,12 @@ router.post('/generate-template-section', async (req, res) => {
     const readmeId = req.body.readmeId;
 
     try {
+        const { template, repoUrl, currentMarkdown, codebaseContent, aiProviderConfig } = req.body;
+        validateAiProviderConfig(aiProviderConfig);
+
         await supabase
             .from('section_generations')
             .insert([{ readme_id: readmeId, user_id: userId }]);
-
-        const { template, repoUrl, currentMarkdown, codebaseContent } = req.body;
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
         const templatePrompts: { [key: string]: string } = {
             'Features': 'List and describe the key features and capabilities of this project. Focus on unique selling points and core functionality.',
@@ -126,13 +100,13 @@ router.post('/generate-template-section', async (req, res) => {
 
       Generate only the section content in markdown format.`;
 
-        const result = await model.generateContent(prompt);
-        const sectionContent = result.response.text();
+        const sectionContent = await generateAiText(aiProviderConfig, prompt);
 
         res.json({ section: sectionContent });
     } catch (error) {
-        console.error('Error generating template section:', error);
-        res.status(500).json({ error: 'Failed to generate template section' });
+        console.error('Error generating template section:', getSafeAiErrorMessage(error));
+        const status = error instanceof AiProviderConfigError ? error.statusCode : 500;
+        res.status(status).json({ error: getSafeAiErrorMessage(error) });
     }
 });
 
