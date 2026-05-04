@@ -10,7 +10,7 @@ import {
 } from "@/lib/server-ai-provider";
 
 export const config = {
-  maxDuration: 300,
+  maxDuration: 60,
   api: {
     bodyParser: {
       sizeLimit: "4.5mb",

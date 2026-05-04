@@ -31,6 +31,7 @@ Etchr is a web application; no installation is required. Simply navigate to the 
 
 ## Deployment
 Deploy the `frontend` directory as the Vercel project root. The app now serves both the frontend and backend API from the same Vercel deployment.
+The free Vercel function duration is capped at 60 seconds, so large repositories may require selecting fewer files.
 
 Required Vercel environment variables:
 * `GITHUB_CLIENT_ID`
