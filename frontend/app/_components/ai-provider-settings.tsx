@@ -160,7 +160,7 @@ export function AiProviderSettings({ value, onChange }: AiProviderSettingsProps)
                 onChange={(event) => updateDraft({ model: event.target.value })}
                 placeholder={
                   draft.provider === "bedrock"
-                    ? "anthropic.claude-3-haiku-20240307-v1:0"
+                    ? "us.anthropic.claude-haiku-4-5-20251001-v1:0"
                     : draft.provider === "azure"
                       ? "my-gpt-deployment"
                       : DEFAULT_MODELS[draft.provider]
